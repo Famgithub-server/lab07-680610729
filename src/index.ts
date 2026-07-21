@@ -1,11 +1,11 @@
-import express, { type Request, type Response } from 'express';
+import express, { type Request, type Response } from "express";
 
 // import middleware
 import morgan from "morgan";
 
 // import database
-import { students } from '@db/db.js';
-import { type Student, type Course } from "@libs/types.js";
+import { students } from "./db/db.ts";
+import { type Student, type Course } from "./libs/types.ts";
 import {
   zStudentDeleteBody,
   zStudentPostBody,
@@ -17,7 +17,7 @@ const port = process.env.PORT || 3000;
 
 // use middleware
 app.use(morgan("dev", { immediate: false }));
-app.use(express.json());    // parses request's payload into 'req.body'
+app.use(express.json()); // parses request's payload into 'req.body'
 
 // Endpoints
 app.get("/", (req: Request, res: Response) => {
@@ -26,22 +26,39 @@ app.get("/", (req: Request, res: Response) => {
 
 // GET /students
 // get students (by program)
-app.get("/students", (req: Request, res: Response) => {
+app.get("/api/students", (req: Request, res: Response) => {
   try {
     const program = req.query.program;
+    const studentId = req.query.studentId;
 
-    if (program) {
+    if (program && studentId) {
       let filtered_students = students.filter(
-        (student) => student.program === program
+        (student) =>
+          student.program === program && student.studentId === studentId,
       );
-      return res.json({
-        success: true,
+      return res.status(200).json({
+        ok: true,
+        data: filtered_students,
+      });
+    } else if (program) {
+      let filtered_students = students.filter(
+        (student) => student.program === program,
+      );
+      return res.status(200).json({
+        ok: true,
+        data: filtered_students,
+      });
+    } else if (studentId) {
+      let filtered_students = students.filter(
+        (student) => student.studentId === studentId,
+      );
+      return res.status(200).json({
+        ok: true,
         data: filtered_students,
       });
     } else {
-      return res.json({
-        success: true,
-        count: students.length,
+      return res.status(200).json({
+        ok: true,
         data: students,
       });
     }
@@ -71,7 +88,7 @@ app.post("/students", (req: Request, res: Response) => {
 
     //check duplicate studentId
     const found = students.find(
-      (student) => student.studentId === body.studentId
+      (student) => student.studentId === body.studentId,
     );
     if (found) {
       return res.json({
@@ -118,7 +135,7 @@ app.put("/students", (req: Request, res: Response) => {
 
     //check duplicate studentId
     const foundIndex = students.findIndex(
-      (student) => student.studentId === body.studentId
+      (student) => student.studentId === body.studentId,
     );
 
     if (foundIndex === -1) {
@@ -149,14 +166,54 @@ app.put("/students", (req: Request, res: Response) => {
 });
 
 // DELETE /students, body = {studentId}
-app.delete("/students", (req: Request, res: Response) => {
-  res.json({
-    message: "Implement this!"
-  })
+app.delete("/api/students", (req: Request, res: Response) => {
+  try {
+    const body = req.body as Student;
+    const result = zStudentDeleteBody.safeParse(body); // check zod
+    if (!result.success) {
+      return res.status(400).json({
+        ok: false,
+        message: "Student Id must contain 9 character",
+      });
+    }
+
+    const foundUser = students.findIndex(
+      (student) => student.studentId === body.studentId,
+    );
+
+    if (foundUser == -1) {
+      return res.status(404).json({
+        ok: false,
+        message: "Student ID does not exist",
+      });
+    }
+    students.splice(foundUser, 1);
+    return res.status(200).json({
+      ok: true,
+      message: `Student Id  ${body.studentId} has been deleted`,
+    });
+
+  } catch (e) {
+    return res.json({
+      success: false,
+      message: "Somthing is wrong, please try again",
+      error: e,
+    });
+  }
 });
 
 // GET /api/me
+app.get("/api/me", (req: Request, res: Response) => {
+  try {
+    return res.status(200).json({
+      ok: true,
+      fullName: "Supatchok Pimsan",
+      studentId: "680610724",
+    });
+  } catch (e) {
 
+  }
+});
 app.listen(port, async () => {
   console.log(`🚀 Server running on http://localhost:${port}`);
 });
